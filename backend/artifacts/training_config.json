@@ -1,0 +1,46 @@
+{
+  "model_version": "1.0.0",
+  "primary_model": "RandomForest",
+  "label_map": {
+    "Normal": 0,
+    "Anomalous": 1
+  },
+  "label_names": {
+    "0": "NORMAL",
+    "1": "ATTACK"
+  },
+  "attack_class_index": 1,
+  "risk_thresholds": {
+    "risk_low_max": 0.35,
+    "risk_high_min": 0.7
+  },
+  "feature_pipeline": {
+    "tfidf": {
+      "analyzer": "char",
+      "ngram_range": [
+        3,
+        5
+      ],
+      "max_features": 4000
+    },
+    "numeric_features": [
+      "path_len",
+      "query_len",
+      "body_len",
+      "special_char_count",
+      "digit_count",
+      "non_alnum_count",
+      "equals_count",
+      "semicolon_count",
+      "slash_count",
+      "quote_count",
+      "angle_bracket_count",
+      "paren_count"
+    ],
+    "categorical": [
+      "method"
+    ]
+  },
+  "test_size": 0.2,
+  "random_state": 42
+}

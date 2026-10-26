@@ -1,0 +1,62 @@
+[
+  {
+    "name": "num__quote_count",
+    "importance": 0.029112093176892763
+  },
+  {
+    "name": "num__non_alnum_count",
+    "importance": 0.021687315044513735
+  },
+  {
+    "name": "num__special_char_count",
+    "importance": 0.017870712080667133
+  },
+  {
+    "name": "num__slash_count",
+    "importance": 0.015569044472487985
+  },
+  {
+    "name": "num__paren_count",
+    "importance": 0.00883444601236551
+  },
+  {
+    "name": "num__semicolon_count",
+    "importance": 0.007654738631997036
+  },
+  {
+    "name": "text__da=",
+    "importance": 0.00753013763298795
+  },
+  {
+    "name": "text__&b1=",
+    "importance": 0.006449287872001115
+  },
+  {
+    "name": "text__na=",
+    "importance": 0.005289249956779136
+  },
+  {
+    "name": "num__equals_count",
+    "importance": 0.00453579031465872
+  },
+  {
+    "name": "text__oa=",
+    "importance": 0.004406431563793914
+  },
+  {
+    "name": "num__path_len",
+    "importance": 0.004197822642689442
+  },
+  {
+    "name": "text__b1=",
+    "importance": 0.004057341132075758
+  },
+  {
+    "name": "num__angle_bracket_count",
+    "importance": 0.003915558129350978
+  },
+  {
+    "name": "num__digit_count",
+    "importance": 0.0038828940259395973
+  }
+]

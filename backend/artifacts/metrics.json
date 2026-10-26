@@ -1,0 +1,242 @@
+{
+  "generated_at": "2026-10-26T12:14:48.508635+00:00",
+  "dataset": {
+    "csic_path": "F:\\Projects\\AIL-Miniproject\\csic_database.csv~1\\csic_database.csv",
+    "composition": "CSIC 2010 (real, binary) + labelled synthetic SQLi/XSS/path-traversal/command-injection requests",
+    "csic_rows_total": 60851,
+    "synthetic_rows_total": 9000,
+    "combined_rows_total": 69851,
+    "train_rows": 26703,
+    "test_rows": 6676,
+    "test_source_counts": {
+      "csic": 4945,
+      "synthetic": 1731
+    },
+    "label_counts_train": {
+      "1": 16921,
+      "0": 9782
+    },
+    "label_counts_test": {
+      "1": 4231,
+      "0": 2445
+    }
+  },
+  "feature_pipeline": {
+    "tfidf": {
+      "analyzer": "char",
+      "ngram_range": [
+        3,
+        5
+      ],
+      "max_features": 4000
+    },
+    "numeric_features": [
+      "path_len",
+      "query_len",
+      "body_len",
+      "special_char_count",
+      "digit_count",
+      "non_alnum_count",
+      "equals_count",
+      "semicolon_count",
+      "slash_count",
+      "quote_count",
+      "angle_bracket_count",
+      "paren_count"
+    ],
+    "categorical": [
+      "method"
+    ]
+  },
+  "decision_tree": {
+    "model": "DecisionTree",
+    "accuracy": 0.8404733373277412,
+    "precision": 0.9925326695706285,
+    "recall": 0.7539588749704561,
+    "f1": 0.8569509738079247,
+    "false_positive_rate": 0.0098159509202454,
+    "false_negative_rate": 0.24604112502954384,
+    "confusion_matrix": {
+      "tn": 2421,
+      "fp": 24,
+      "fn": 1041,
+      "tp": 3190
+    },
+    "confusion_matrix_grid": [
+      [
+        2421,
+        24
+      ],
+      [
+        1041,
+        3190
+      ]
+    ],
+    "mean_inference_latency_ms": 0.5634268274412156,
+    "report": "              precision    recall  f1-score   support\n\n      NORMAL       0.70      0.99      0.82      2445\n      ATTACK       0.99      0.75      0.86      4231\n\n    accuracy                           0.84      6676\n   macro avg       0.85      0.87      0.84      6676\nweighted avg       0.89      0.84      0.84      6676\n"
+  },
+  "random_forest": {
+    "model": "RandomForest",
+    "accuracy": 0.9639005392450569,
+    "precision": 0.9877750611246944,
+    "recall": 0.9548570077995746,
+    "f1": 0.9710371349597404,
+    "false_positive_rate": 0.02044989775051125,
+    "false_negative_rate": 0.04514299220042543,
+    "confusion_matrix": {
+      "tn": 2395,
+      "fp": 50,
+      "fn": 191,
+      "tp": 4040
+    },
+    "confusion_matrix_grid": [
+      [
+        2395,
+        50
+      ],
+      [
+        191,
+        4040
+      ]
+    ],
+    "mean_inference_latency_ms": 0.6647754493709538,
+    "report": "              precision    recall  f1-score   support\n\n      NORMAL       0.93      0.98      0.95      2445\n      ATTACK       0.99      0.95      0.97      4231\n\n    accuracy                           0.96      6676\n   macro avg       0.96      0.97      0.96      6676\nweighted avg       0.97      0.96      0.96      6676\n"
+  },
+  "random_forest_csic_subset": {
+    "model": "RandomForest-csic-only",
+    "accuracy": 0.962386248736097,
+    "precision": 0.9847612597358618,
+    "recall": 0.9537553296162676,
+    "f1": 0.9690103298900367,
+    "false_positive_rate": 0.023734177215189875,
+    "false_negative_rate": 0.046244670383732374,
+    "confusion_matrix": {
+      "tn": 1851,
+      "fp": 45,
+      "fn": 141,
+      "tp": 2908
+    },
+    "confusion_matrix_grid": [
+      [
+        1851,
+        45
+      ],
+      [
+        141,
+        2908
+      ]
+    ],
+    "mean_inference_latency_ms": 0.9938735085943501,
+    "report": "              precision    recall  f1-score   support\n\n      NORMAL       0.93      0.98      0.95      1896\n      ATTACK       0.98      0.95      0.97      3049\n\n    accuracy                           0.96      4945\n   macro avg       0.96      0.97      0.96      4945\nweighted avg       0.96      0.96      0.96      4945\n"
+  },
+  "random_forest_synthetic_subset": {
+    "model": "RandomForest-synthetic-only",
+    "accuracy": 0.9682264586943963,
+    "precision": 0.9956024626209323,
+    "recall": 0.9576988155668359,
+    "f1": 0.9762828805519621,
+    "false_positive_rate": 0.009107468123861567,
+    "false_negative_rate": 0.04230118443316413,
+    "confusion_matrix": {
+      "tn": 544,
+      "fp": 5,
+      "fn": 50,
+      "tp": 1132
+    },
+    "confusion_matrix_grid": [
+      [
+        544,
+        5
+      ],
+      [
+        50,
+        1132
+      ]
+    ],
+    "mean_inference_latency_ms": 0.31962986713000113,
+    "report": "              precision    recall  f1-score   support\n\n      NORMAL       0.92      0.99      0.95       549\n      ATTACK       1.00      0.96      0.98      1182\n\n    accuracy                           0.97      1731\n   macro avg       0.96      0.97      0.96      1731\nweighted avg       0.97      0.97      0.97      1731\n"
+  },
+  "primary_model": "RandomForest",
+  "top_features": [
+    {
+      "name": "num__quote_count",
+      "importance": 0.029112093176892763
+    },
+    {
+      "name": "num__non_alnum_count",
+      "importance": 0.021687315044513735
+    },
+    {
+      "name": "num__special_char_count",
+      "importance": 0.017870712080667133
+    },
+    {
+      "name": "num__slash_count",
+      "importance": 0.015569044472487985
+    },
+    {
+      "name": "num__paren_count",
+      "importance": 0.00883444601236551
+    },
+    {
+      "name": "num__semicolon_count",
+      "importance": 0.007654738631997036
+    },
+    {
+      "name": "text__da=",
+      "importance": 0.00753013763298795
+    },
+    {
+      "name": "text__&b1=",
+      "importance": 0.006449287872001115
+    },
+    {
+      "name": "text__na=",
+      "importance": 0.005289249956779136
+    },
+    {
+      "name": "num__equals_count",
+      "importance": 0.00453579031465872
+    },
+    {
+      "name": "text__oa=",
+      "importance": 0.004406431563793914
+    },
+    {
+      "name": "num__path_len",
+      "importance": 0.004197822642689442
+    },
+    {
+      "name": "text__b1=",
+      "importance": 0.004057341132075758
+    },
+    {
+      "name": "num__angle_bracket_count",
+      "importance": 0.003915558129350978
+    },
+    {
+      "name": "num__digit_count",
+      "importance": 0.0038828940259395973
+    },
+    {
+      "name": "text__b1a=",
+      "importance": 0.00317212447928085
+    },
+    {
+      "name": "text__ or ",
+      "importance": 0.0031439253805796005
+    },
+    {
+      "name": "text__modo=",
+      "importance": 0.0031071211079358773
+    },
+    {
+      "name": "text__&b1a",
+      "importance": 0.003046516740097666
+    },
+    {
+      "name": "text__re=",
+      "importance": 0.003009853484907105
+    }
+  ]
+}

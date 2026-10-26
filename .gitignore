@@ -1,0 +1,48 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# --- Node / Frontend ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+*.tsbuildinfo
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Dataset files (too large for git) ---
+data/*.csv
+data/*.csv.gz
+csic_database.csv
+
+# --- Python cache / bytecode (never commit) ---
+# joblib artifacts ARE committed so teammates don't need to retrain
+# If you want to exclude them, uncomment:
+# *.joblib
+# *.pkl
+
+# --- Logs / env ---
+*.log
+.env
+.env.local
+
+# --- Datasets (large) ---
+csic_database.csv
+*.csv~

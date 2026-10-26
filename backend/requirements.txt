@@ -1,0 +1,21 @@
+# IntelliAPI AI - Backend dependencies
+# Python 3.11+ (tested on 3.13)
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.20
+
+# Data / ML
+pandas==2.2.3
+numpy==2.2.6
+scikit-learn==1.6.1
+joblib==1.4.4
+
+# Optional MongoDB Atlas storage backend (comment out if using in-memory only)
+pymongo==4.10.1
+
+# Utilities
+python-dotenv==1.0.1
+websockets==14.1

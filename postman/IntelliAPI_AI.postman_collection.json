@@ -1,0 +1,117 @@
+{
+  "info": {
+    "name": "IntelliAPI AI",
+    "description": "Test collection for IntelliAPI AI — Intelligent Agent for Real-Time API Threat Detection.\n\nPre-requisite: FastAPI backend running on http://127.0.0.1:8000\n\nRun training first if no model is loaded:\n  cd intelliapi-ai/backend\n  python -m training.train",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" }
+  ],
+  "item": [
+    {
+      "name": "1. Health check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health",
+        "description": "Confirms the service is running and the model is loaded."
+      }
+    },
+    {
+      "name": "2. Model info",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/model-info",
+        "description": "Returns the loaded model name, version, real test-set metrics (accuracy, precision, recall, F1, FPR, FNR, confusion matrix), top feature importances, risk thresholds, and training dataset composition."
+      }
+    },
+    {
+      "name": "3. Analyze — normal request",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/analyze",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"postman-normal-001\",\n  \"timestamp\": \"2026-10-26T10:00:00Z\",\n  \"method\": \"GET\",\n  \"path\": \"/api/products\",\n  \"query\": \"category=books&page=1\",\n  \"headers\": { \"user-agent\": \"Postman/1.0\" },\n  \"body\": \"\",\n  \"scenario_label\": \"normal\"\n}"
+        },
+        "description": "Normal API request. Expect: prediction=NORMAL, risk=LOW, decision=ALLOW, attack_probability < 0.35, no heuristic findings."
+      }
+    },
+    {
+      "name": "4. Analyze — SQL injection",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/analyze",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"postman-sqli-001\",\n  \"timestamp\": \"2026-10-26T10:00:05Z\",\n  \"method\": \"GET\",\n  \"path\": \"/api/login\",\n  \"query\": \"username=admin&password=' OR '1'='1\",\n  \"headers\": { \"user-agent\": \"Postman/1.0\" },\n  \"body\": \"\",\n  \"scenario_label\": \"sqli\"\n}"
+        },
+        "description": "Classic SQL injection. Expect: prediction=ATTACK, risk=HIGH, decision=BLOCK, heuristic_findings includes type=sqli."
+      }
+    },
+    {
+      "name": "5. Analyze — XSS",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/analyze",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"postman-xss-001\",\n  \"timestamp\": \"2026-10-26T10:00:10Z\",\n  \"method\": \"POST\",\n  \"path\": \"/api/feedback\",\n  \"query\": \"\",\n  \"headers\": { \"user-agent\": \"Postman/1.0\" },\n  \"body\": \"msg=%3Cscript%3Ealert(1)%3C%2Fscript%3E\",\n  \"scenario_label\": \"xss\"\n}"
+        },
+        "description": "XSS payload in request body. Expect: prediction=ATTACK, heuristic_findings includes type=xss."
+      }
+    },
+    {
+      "name": "6. Analyze — path traversal",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/analyze",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"postman-path-001\",\n  \"timestamp\": \"2026-10-26T10:00:15Z\",\n  \"method\": \"GET\",\n  \"path\": \"/api/files\",\n  \"query\": \"name=..%2F..%2F..%2Fetc%2Fpasswd\",\n  \"headers\": { \"user-agent\": \"Postman/1.0\" },\n  \"body\": \"\",\n  \"scenario_label\": \"path_traversal\"\n}"
+        },
+        "description": "Path traversal targeting /etc/passwd. Expect: attack_type=path_traversal in heuristic findings."
+      }
+    },
+    {
+      "name": "7. Analyze — command injection",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/analyze",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"postman-cmd-001\",\n  \"timestamp\": \"2026-10-26T10:00:20Z\",\n  \"method\": \"POST\",\n  \"path\": \"/api/execute\",\n  \"query\": \"\",\n  \"headers\": { \"user-agent\": \"Postman/1.0\" },\n  \"body\": \"cmd=ls+-la;+cat+/etc/passwd\",\n  \"scenario_label\": \"cmd_injection\"\n}"
+        },
+        "description": "Command injection in body. Expect heuristic_findings includes type=cmd_injection."
+      }
+    },
+    {
+      "name": "8. List recent events",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/events?limit=10",
+        "description": "Returns the 10 most recently analyzed events."
+      }
+    },
+    {
+      "name": "9. Get stats",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/stats",
+        "description": "Returns aggregate statistics: total_requests, detected_attacks, allowed, monitored, blocked, attack_rate, avg_latency, attack_type_distribution."
+      }
+    },
+    {
+      "name": "10. Swagger UI",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/docs",
+        "description": "Opens the FastAPI auto-generated Swagger UI for interactive testing."
+      }
+    }
+  ]
+}
