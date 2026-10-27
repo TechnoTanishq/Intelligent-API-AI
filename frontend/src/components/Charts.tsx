@@ -37,25 +37,29 @@ const colorFor = (k: string) => (COLORS as Record<string, string>)[k.toLowerCase
 
 function Panel({ title, children, height = 220 }: { title: string; children: React.ReactNode; height?: number }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-      <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3">{title}</h3>
+    <div className="card p-4">
+      <h3 className="text-[11px] font-bold uppercase tracking-widest mb-3"
+        style={{ color: "var(--text-muted)" }}>{title}</h3>
       <div style={{ height }}>{children}</div>
     </div>
   );
 }
 
-const tooltipStyle = {
-  background: "var(--bg-raised)",
-  border: "1px solid var(--border)",
-  borderRadius: 10,
-  fontSize: 11,
-  color: "var(--text-primary)",
-};
-
 export default function Charts({ events, stats, modelInfo }: { events: EventRecord[]; stats: Stats; modelInfo: ModelInfo | null }) {
   const { isDark } = useTheme();
-  const axisColor = isDark ? "#475569" : "#94a3b8";
-  const gridColor = isDark ? "#1d2a3a" : "#e2e8f0";
+  const axisColor  = isDark ? "#475569" : "#6b87b8";
+  const gridColor  = isDark ? "#1d2a3a" : "#dbe6f5";
+  const tooltipBg  = isDark ? "var(--bg-raised)" : "#ffffff";
+  const tooltipBdr = isDark ? "var(--border)"    : "#dbe6f5";
+  const tooltipStyle = {
+    background: tooltipBg,
+    border: `1px solid ${tooltipBdr}`,
+    borderRadius: 10,
+    fontSize: 11,
+    color: isDark ? "#e2e8f0" : "#0a1628",
+  };
+
+  const barFill = isDark ? "#22d3ee" : "#f97316";
   const hasEvents = events.length > 0;
 
   const atkTypeData = Object.entries(stats.attack_type_distribution).map(([name, value]) => ({ name, value }));
@@ -139,7 +143,7 @@ export default function Charts({ events, stats, modelInfo }: { events: EventReco
               <XAxis type="number" stroke={axisColor} fontSize={10} />
               <YAxis type="category" dataKey="name" stroke={axisColor} fontSize={9} width={110} tickMargin={4} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "importance"]} />
-              <Bar dataKey="importance" fill="#22d3ee" radius={[0, 3, 3, 0]} />
+              <Bar dataKey="importance" fill={barFill} radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : <Empty label="Feature importance available after /model-info loads" />}

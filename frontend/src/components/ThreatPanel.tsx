@@ -1,20 +1,31 @@
 import type { EventRecord } from "../types";
 
-function Pill({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  const base = "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-mono";
-  const c =
-    tone === "ok"     ? "text-ok    border-ok/40    bg-ok/8"    :
-    tone === "warn"   ? "text-warn  border-warn/40  bg-warn/8"  :
-    tone === "danger" ? "text-danger border-danger/40 bg-danger/8" :
-    "text-[var(--text-secondary)] border-[var(--border)] bg-[var(--bg-raised)]";
-  return <span className={`${base} ${c}`}><span className="text-[var(--text-muted)]">{label}:</span> {value}</span>;
+function Pill({ label, value, color, bg, border }: {
+  label: string; value: string; color?: string; bg?: string; border?: string;
+}) {
+  return (
+    <span style={{
+      display: "inline-flex", gap: 4, alignItems: "center",
+      borderRadius: 7, border: `1px solid ${border ?? "var(--border)"}`,
+      padding: "2px 9px", fontSize: 11, fontFamily: "monospace",
+      backgroundColor: bg ?? "var(--bg-raised)", color: color ?? "var(--text-secondary)",
+    }}>
+      <span style={{ color: "var(--text-muted)", marginRight: 1 }}>{label}:</span>
+      <span style={{ fontWeight: 700 }}>{value}</span>
+    </span>
+  );
 }
 
-function Block({ title, children, accent }: { title: string; children: React.ReactNode; accent?: string }) {
+function Section({ title, accent, children }: { title: string; accent?: boolean; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-raised)] overflow-hidden mb-3 last:mb-0">
-      <div className={`px-3 py-2 border-b border-[var(--border)] flex items-center gap-2 ${accent ?? ""}`}>
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{title}</span>
+    <div className="card-inner overflow-hidden mb-3 last:mb-0">
+      <div className="px-3 py-2 flex items-center gap-2"
+        style={{ borderBottom: "1px solid var(--border)", backgroundColor: accent ? "var(--accent-bg)" : "var(--bg-raised)" }}>
+        {accent && <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: "var(--accent)" }} />}
+        <span className="text-[10px] font-bold uppercase tracking-widest"
+          style={{ color: accent ? "var(--accent-muted)" : "var(--text-muted)" }}>
+          {title}
+        </span>
       </div>
       <div className="px-3 py-3">{children}</div>
     </div>
@@ -24,11 +35,14 @@ function Block({ title, children, accent }: { title: string; children: React.Rea
 export default function ThreatPanel({ event }: { event: EventRecord | null }) {
   if (!event) {
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] flex flex-col items-center justify-center gap-3 min-h-[300px] p-6">
-        <div className="h-12 w-12 rounded-full bg-[var(--bg-raised)] flex items-center justify-center text-2xl">🔍</div>
+      <div className="card flex flex-col items-center justify-center gap-4 min-h-[300px] p-8">
+        <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl"
+          style={{ backgroundColor: "var(--bg-sunken)" }}>🔍</div>
         <div className="text-center">
-          <div className="text-sm font-medium text-[var(--text-secondary)]">No event selected</div>
-          <div className="text-[11px] text-[var(--text-muted)] mt-1">
+          <div className="font-semibold text-sm" style={{ color: "var(--text-secondary)" }}>
+            No event selected
+          </div>
+          <div className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
             Click any row in the feed to inspect its full threat analysis
           </div>
         </div>
@@ -37,152 +51,177 @@ export default function ThreatPanel({ event }: { event: EventRecord | null }) {
   }
 
   const r = event.result;
-  const present = r.model_evidence.filter((e) => e.present);
-  const isAttack = r.prediction === "ATTACK";
+  const isBlock   = r.decision === "BLOCK";
+  const isMonitor = r.decision === "MONITOR";
+  const isAttack  = r.prediction === "ATTACK";
 
-  // Decide header accent strip colour
-  const headerCls =
-    r.decision === "BLOCK"   ? "bg-danger/10 border-b border-danger/20" :
-    r.decision === "MONITOR" ? "bg-warn/10   border-b border-warn/20"   :
-                               "bg-ok/10     border-b border-ok/20";
-  const decisionCls =
-    r.decision === "BLOCK"   ? "text-danger" :
-    r.decision === "MONITOR" ? "text-warn"   : "text-ok";
+  const headerBg     = isBlock ? "rgba(239,68,68,0.08)"  : isMonitor ? "rgba(245,158,11,0.08)"  : "rgba(16,185,129,0.06)";
+  const headerBorder = isBlock ? "rgba(239,68,68,0.25)"  : isMonitor ? "rgba(245,158,11,0.25)"  : "rgba(16,185,129,0.20)";
+  const decisionColor= isBlock ? "#ef4444"               : isMonitor ? "#d97706"                : "#059669";
+
+  const present = r.model_evidence.filter((e) => e.present);
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden flex flex-col max-h-[700px]">
-      {/* ── Panel header ────────────────────────────────────────────────── */}
-      <div className={`px-4 py-3 ${headerCls} flex items-center justify-between gap-2`}>
+    <div className="card overflow-hidden flex flex-col" style={{ maxHeight: 700 }}>
+      {/* Coloured header */}
+      <div className="px-4 py-3 flex items-center justify-between flex-shrink-0"
+        style={{ backgroundColor: headerBg, borderBottom: `1px solid ${headerBorder}` }}>
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Threat Analysis
-          </h3>
-          <div className="font-mono text-[11px] text-[var(--text-muted)] mt-0.5 truncate max-w-[240px]">
+          </div>
+          <div className="font-mono text-[11px] mt-0.5 truncate max-w-[220px]"
+            style={{ color: "var(--text-secondary)" }}>
             {event.event_id}
           </div>
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className={`text-lg font-black ${decisionCls}`}>{r.decision}</div>
-          <div className="text-[10px] text-[var(--text-muted)] font-mono">
+        <div className="text-right">
+          <div className="text-xl font-black" style={{ color: decisionColor }}>{r.decision}</div>
+          <div className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
             {new Date(event.timestamp).toLocaleTimeString()}
           </div>
         </div>
       </div>
 
-      {/* ── Scrollable body ─────────────────────────────────────────────── */}
+      {/* Scrollable body */}
       <div className="overflow-auto flex-1 p-3">
 
-        {/* Quick summary pills */}
+        {/* Quick pills */}
         <div className="flex flex-wrap gap-1.5 mb-3">
-          <Pill label="prediction" value={r.prediction} tone={isAttack ? "danger" : "ok"} />
-          {r.attack_type && <Pill label="type" value={r.attack_type} tone="warn" />}
+          <Pill label="prediction" value={r.prediction}
+            color={isAttack ? "#ef4444" : "#059669"}
+            bg={isAttack ? "rgba(239,68,68,0.08)" : "rgba(16,185,129,0.08)"}
+            border={isAttack ? "rgba(239,68,68,0.30)" : "rgba(16,185,129,0.30)"} />
+          {r.attack_type && (
+            <Pill label="type" value={r.attack_type}
+              color="var(--accent-muted)" bg="var(--accent-bg)" border="var(--accent-border)" />
+          )}
           <Pill label="prob" value={r.attack_probability.toFixed(3)} />
-          <Pill label="risk" value={r.risk_level} tone={r.risk_level === "HIGH" ? "danger" : r.risk_level === "MEDIUM" ? "warn" : "ok"} />
+          <Pill label="risk" value={r.risk_level}
+            color={r.risk_level === "HIGH" ? "#ef4444" : r.risk_level === "MEDIUM" ? "#d97706" : "#059669"}
+            bg={r.risk_level === "HIGH" ? "rgba(239,68,68,0.08)" : r.risk_level === "MEDIUM" ? "rgba(245,158,11,0.08)" : "rgba(16,185,129,0.08)"}
+            border={r.risk_level === "HIGH" ? "rgba(239,68,68,0.30)" : r.risk_level === "MEDIUM" ? "rgba(245,158,11,0.30)" : "rgba(16,185,129,0.30)"} />
           <Pill label="latency" value={`${r.inference_latency_ms.toFixed(0)}ms`} />
           <Pill label="model" value={r.model_name} />
         </div>
 
-        {/* Request details */}
-        <Block title="Request">
-          <div className="font-mono text-[11px] text-[var(--text-secondary)] space-y-1">
-            <div><span className="text-[var(--text-muted)] mr-1">method</span>{event.method}</div>
-            <div className="truncate"><span className="text-[var(--text-muted)] mr-1">path</span>{event.path || "/"}</div>
-            <div className="truncate"><span className="text-[var(--text-muted)] mr-1">query</span>{event.query || <span className="italic text-[var(--text-muted)]">(none)</span>}</div>
-            <div><span className="text-[var(--text-muted)] mr-1">body len</span>{String(r.request_summary?.body_length ?? 0)}</div>
+        {/* Request */}
+        <Section title="Request">
+          <div className="font-mono text-[11px] space-y-1" style={{ color: "var(--text-secondary)" }}>
+            <div><span style={{ color: "var(--text-muted)" }}>method  </span>{event.method}</div>
+            <div className="truncate"><span style={{ color: "var(--text-muted)" }}>path    </span>{event.path || "/"}</div>
+            <div className="truncate"><span style={{ color: "var(--text-muted)" }}>query   </span>{event.query || <em style={{ color: "var(--text-muted)" }}>(none)</em>}</div>
+            <div><span style={{ color: "var(--text-muted)" }}>bodylen </span>{String(r.request_summary?.body_length ?? 0)}</div>
             {event.scenario_label && (
-              <div><span className="text-[var(--text-muted)] mr-1">sim label</span>
-                <span className="text-accent-soft">{event.scenario_label}</span>
+              <div><span style={{ color: "var(--text-muted)" }}>sim tag </span>
+                <span style={{ color: "var(--accent)" }}>{event.scenario_label}</span>
               </div>
             )}
           </div>
-        </Block>
+        </Section>
 
         {/* Decision policy */}
-        <Block title="Decision policy">
-          <div className="font-mono text-[11px] text-[var(--text-secondary)] break-words">{r.decision_policy}</div>
+        <Section title="Decision Policy" accent>
+          <div className="font-mono text-[11px] break-words" style={{ color: "var(--text-secondary)" }}>
+            {r.decision_policy}
+          </div>
           {r.escalated_by_heuristics && (
-            <div className="mt-2 text-[11px] text-warn flex items-center gap-1.5">
+            <div className="mt-2 text-[11px] flex items-center gap-1.5"
+              style={{ color: "#d97706" }}>
               <span>⬆</span>
-              <span>Heuristics escalated from <strong>{r.base_action}</strong> to <strong>{r.decision}</strong></span>
+              <span>Heuristics escalated <strong>{r.base_action}</strong> → <strong>{r.decision}</strong></span>
             </div>
           )}
-        </Block>
+        </Section>
 
-        {/* Reasons */}
-        <Block title="Why this decision">
+        {/* Why */}
+        <Section title="Why This Decision">
           <ul className="space-y-1.5">
             {r.reasons.map((rsn, i) => (
-              <li key={i} className="flex gap-2 text-[12px] text-[var(--text-secondary)]">
-                <span className="text-[var(--text-muted)] mt-0.5 flex-shrink-0">›</span>
-                <span>{rsn}</span>
+              <li key={i} className="flex gap-2 text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                <span className="flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }}>›</span>
+                {rsn}
               </li>
             ))}
           </ul>
-        </Block>
+        </Section>
 
         {/* Model evidence */}
-        <Block title={`Model evidence (${present.length} features active)`}>
+        <Section title={`Model Evidence (${present.length} features active)`}>
           {present.length ? (
             <div className="flex flex-wrap gap-1.5">
               {present.map((e) => (
-                <span
-                  key={e.feature}
-                  className="inline-flex items-center rounded-md border border-[var(--border)] bg-[var(--bg-sunken)] px-2 py-1 text-[10px] font-mono text-[var(--text-secondary)]"
-                >
+                <span key={e.feature} style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  borderRadius: 6, border: "1px solid var(--border)",
+                  padding: "3px 8px", fontSize: 10, fontFamily: "monospace",
+                  backgroundColor: "var(--bg-sunken)", color: "var(--text-secondary)",
+                }}>
                   {e.feature}
-                  <span className="ml-1.5 text-accent opacity-80">{(e.importance * 100).toFixed(1)}%</span>
+                  <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+                    {(e.importance * 100).toFixed(1)}%
+                  </span>
                 </span>
               ))}
             </div>
           ) : (
-            <div className="text-[11px] italic text-[var(--text-muted)]">No high-importance features present in this request.</div>
+            <div className="text-[11px] italic" style={{ color: "var(--text-muted)" }}>
+              No high-importance features active in this request.
+            </div>
           )}
-        </Block>
+        </Section>
 
-        {/* Heuristic findings */}
-        <Block title={`Heuristic findings (${r.heuristic_findings.length}) — separate from model`}>
+        {/* Heuristics */}
+        <Section title={`Heuristic Findings (${r.heuristic_findings.length}) — separate from model`}>
           {r.heuristic_findings.length ? (
             <ul className="space-y-2">
               {r.heuristic_findings.map((h, i) => (
-                <li key={i} className="rounded-lg bg-[var(--bg-sunken)] border border-[var(--border)] p-2">
+                <li key={i} className="rounded-lg p-2.5"
+                  style={{ backgroundColor: "var(--bg-sunken)", border: "1px solid var(--border)" }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="inline-flex rounded-md border border-warn/40 bg-warn/10 text-warn px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                      {h.type}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-secondary)]">{h.description}</span>
+                    <span style={{
+                      display: "inline-flex", borderRadius: 5,
+                      padding: "1px 7px", fontSize: 10, fontWeight: 700,
+                      letterSpacing: "0.06em", fontFamily: "monospace",
+                      backgroundColor: "rgba(245,158,11,0.12)",
+                      border: "1px solid rgba(245,158,11,0.35)", color: "#d97706",
+                    }}>{h.type.toUpperCase()}</span>
+                    <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{h.description}</span>
                   </div>
-                  <div className="font-mono text-[11px] text-danger break-all">
-                    <span className="text-[var(--text-muted)] mr-1">evidence:</span>{h.evidence}
+                  <div className="font-mono text-[10px] break-all" style={{ color: "#ef4444" }}>
+                    <span style={{ color: "var(--text-muted)" }}>evidence: </span>{h.evidence}
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="text-[11px] italic text-[var(--text-muted)]">No heuristic indicators triggered.</div>
+            <div className="text-[11px] italic" style={{ color: "var(--text-muted)" }}>
+              No heuristic indicators triggered.
+            </div>
           )}
-        </Block>
+        </Section>
 
-        {/* Decision tree path */}
+        {/* DT path */}
         {r.decision_tree_path.length > 0 && (
-          <Block title="Decision tree path (interpretable baseline)">
+          <Section title="Decision Tree Path (Interpretable Baseline)">
             <ol className="space-y-0.5">
               {r.decision_tree_path.map((s, i) => (
-                <li key={i} className="flex items-start gap-2 text-[11px] font-mono text-[var(--text-secondary)]">
-                  <span className="text-[var(--text-muted)] w-5 text-right flex-shrink-0">{i + 1}.</span>
-                  {s.leaf ? (
-                    <span className="text-accent-soft font-semibold">→ predict {s.prediction}</span>
-                  ) : (
-                    <span>
-                      {s.feature}{" "}
-                      <span className="text-warn">{s.direction}</span>{" "}
-                      {s.threshold}
-                      <span className="text-[var(--text-muted)] ml-1.5">(val {s.value})</span>
-                    </span>
-                  )}
+                <li key={i} className="flex items-start gap-2 text-[11px] font-mono"
+                  style={{ color: "var(--text-secondary)" }}>
+                  <span className="w-5 text-right flex-shrink-0" style={{ color: "var(--text-muted)" }}>{i + 1}.</span>
+                  {s.leaf
+                    ? <span style={{ color: "var(--accent)", fontWeight: 700 }}>→ predict {s.prediction}</span>
+                    : <span>
+                        {s.feature}{" "}
+                        <span style={{ color: "#d97706" }}>{s.direction}</span>{" "}
+                        {s.threshold}
+                        <span style={{ color: "var(--text-muted)" }}> (val {s.value})</span>
+                      </span>
+                  }
                 </li>
               ))}
             </ol>
-          </Block>
+          </Section>
         )}
 
       </div>

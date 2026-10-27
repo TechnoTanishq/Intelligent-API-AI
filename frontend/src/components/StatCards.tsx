@@ -4,89 +4,104 @@ interface CardDef {
   label: string;
   value: string;
   sub?: string;
-  accent: string;
+  valueColor: string;   // CSS color string
+  iconBg: string;       // Tailwind bg class
   icon: string;
-  gradient: string;
+  topBarColor: string;  // top accent line color
 }
 
-function StatCard({ label, value, sub, accent, icon, gradient }: CardDef) {
+function StatCard({ label, value, sub, valueColor, icon, iconBg, topBarColor }: CardDef) {
   return (
-    <div className={`relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-card-dark dark:shadow-card-dark shadow-card-light transition-shadow hover:shadow-md`}>
-      {/* Subtle gradient splash in corner */}
-      <div className={`pointer-events-none absolute -top-4 -right-4 h-16 w-16 rounded-full opacity-10 blur-xl ${gradient}`} />
+    <div className="card relative overflow-hidden animate-fade-in">
+      {/* Top accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ backgroundColor: topBarColor }} />
 
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2 truncate">
-            {label}
+      <div className="pt-5 pb-4 px-4">
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className={`h-9 w-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${iconBg}`}>
+            {icon}
           </div>
-          <div className={`text-2xl font-bold leading-none tabular-nums ${accent}`}>
-            {value}
+          <div className="text-right flex-1 min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-widest truncate"
+              style={{ color: "var(--text-muted)" }}>
+              {label}
+            </div>
           </div>
-          {sub && (
-            <div className="mt-1.5 text-[10px] text-[var(--text-muted)] truncate">{sub}</div>
-          )}
         </div>
-        <div className={`flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-base ${gradient} bg-opacity-15`}>
-          <span>{icon}</span>
+        <div className="text-[28px] font-black leading-none tabular-nums"
+          style={{ color: valueColor }}>
+          {value}
         </div>
+        {sub && (
+          <div className="mt-1.5 text-[10px]" style={{ color: "var(--text-muted)" }}>{sub}</div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function StatCards({ stats }: { stats: Stats }) {
+  /* accent = orange in light, cyan in dark — use CSS var */
+  const accentColor = "var(--accent)";
+
   const cards: CardDef[] = [
     {
-      label: "Total analysed",
+      label: "Total Analysed",
       value: stats.total_requests.toLocaleString(),
-      accent: "text-[var(--text-primary)]",
+      valueColor: "var(--text-primary)",
       icon: "⬡",
-      gradient: "bg-accent",
+      iconBg: "bg-navy-100 dark:bg-ink-600",
+      topBarColor: "var(--accent)",
     },
     {
-      label: "Detected attacks",
+      label: "Detected Attacks",
       value: stats.detected_attacks.toLocaleString(),
-      accent: stats.detected_attacks > 0 ? "text-danger" : "text-[var(--text-primary)]",
+      valueColor: stats.detected_attacks > 0 ? "#ef4444" : "var(--text-primary)",
       icon: "🛡",
-      gradient: "bg-danger",
+      iconBg: stats.detected_attacks > 0 ? "bg-red-100 dark:bg-red-900/30" : "bg-navy-100 dark:bg-ink-600",
+      topBarColor: stats.detected_attacks > 0 ? "#ef4444" : "var(--border-heavy)",
     },
     {
       label: "Allowed",
       value: stats.allowed_requests.toLocaleString(),
-      accent: "text-ok",
+      valueColor: "#10b981",
       icon: "✓",
-      gradient: "bg-ok",
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/25",
+      topBarColor: "#10b981",
     },
     {
       label: "Monitored",
       value: stats.monitored_requests.toLocaleString(),
-      accent: "text-warn",
+      valueColor: "#f59e0b",
       icon: "◎",
-      gradient: "bg-warn",
+      iconBg: "bg-amber-100 dark:bg-amber-900/25",
+      topBarColor: "#f59e0b",
     },
     {
       label: "Blocked",
       value: stats.blocked_requests.toLocaleString(),
-      accent: stats.blocked_requests > 0 ? "text-danger" : "text-[var(--text-primary)]",
+      valueColor: stats.blocked_requests > 0 ? "#ef4444" : "var(--text-primary)",
       icon: "✕",
-      gradient: "bg-danger",
+      iconBg: stats.blocked_requests > 0 ? "bg-red-100 dark:bg-red-900/30" : "bg-navy-100 dark:bg-ink-600",
+      topBarColor: stats.blocked_requests > 0 ? "#ef4444" : "var(--border-heavy)",
     },
     {
-      label: "Attack rate",
+      label: "Attack Rate",
       value: `${(stats.attack_rate * 100).toFixed(1)}%`,
       sub: "attacks ÷ total",
-      accent: "text-accent-soft",
+      valueColor: accentColor,
       icon: "%",
-      gradient: "bg-accent",
+      iconBg: "bg-orange-100 dark:bg-cyan-900/25",
+      topBarColor: accentColor,
     },
     {
-      label: "Avg latency",
-      value: `${stats.avg_inference_latency_ms.toFixed(0)} ms`,
-      sub: "per-request agent",
-      accent: "text-accent-soft",
+      label: "Avg Latency",
+      value: `${stats.avg_inference_latency_ms.toFixed(0)}ms`,
+      sub: "per-request",
+      valueColor: accentColor,
       icon: "⚡",
-      gradient: "bg-accent",
+      iconBg: "bg-orange-100 dark:bg-cyan-900/25",
+      topBarColor: accentColor,
     },
   ];
 

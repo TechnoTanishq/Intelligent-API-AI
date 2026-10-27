@@ -1,32 +1,41 @@
 import { useEffect, useRef, useState } from "react";
 import type { EventRecord, Filters } from "../types";
 
-// ── colour helpers ────────────────────────────────────────────────────────────
-function decisionBadge(d: string) {
-  if (d === "BLOCK")   return "bg-danger/15 text-danger   border-danger/30";
-  if (d === "MONITOR") return "bg-warn/15   text-warn     border-warn/30";
-  return                      "bg-ok/15     text-ok       border-ok/30";
-}
-function predBadge(p: string) {
-  return p === "ATTACK"
-    ? "bg-danger/15 text-danger border-danger/30"
-    : "bg-ok/15     text-ok     border-ok/30";
-}
-function riskBadge(r: string) {
-  if (r === "HIGH")   return "bg-danger/15 text-danger border-danger/30";
-  if (r === "MEDIUM") return "bg-warn/15   text-warn   border-warn/30";
-  return                     "bg-ok/15     text-ok     border-ok/30";
-}
-function methodBadge(m: string) {
-  if (m === "POST") return "bg-accent/15 text-accent border-accent/30";
-  if (m === "PUT")  return "bg-warn/15   text-warn   border-warn/30";
-  return                   "bg-[var(--bg-raised)] text-[var(--text-secondary)] border-[var(--border)]";
+function pill(text: string, bgCss: string, textCss: string, borderCss: string) {
+  return { text, bgCss, textCss, borderCss };
 }
 
-function Pill({ text, cls }: { text: string; cls: string }) {
+function decisionPill(d: string) {
+  if (d === "BLOCK")   return pill(d, "rgba(239,68,68,0.10)",  "#ef4444", "rgba(239,68,68,0.35)");
+  if (d === "MONITOR") return pill(d, "rgba(245,158,11,0.10)", "#d97706", "rgba(245,158,11,0.35)");
+  return                      pill(d, "rgba(16,185,129,0.10)", "#059669", "rgba(16,185,129,0.35)");
+}
+function predPill(p: string) {
+  return p === "ATTACK"
+    ? pill(p, "rgba(239,68,68,0.10)",  "#ef4444", "rgba(239,68,68,0.35)")
+    : pill(p, "rgba(16,185,129,0.10)", "#059669", "rgba(16,185,129,0.35)");
+}
+function riskPill(r: string) {
+  if (r === "HIGH")   return pill(r, "rgba(239,68,68,0.10)",  "#ef4444", "rgba(239,68,68,0.35)");
+  if (r === "MEDIUM") return pill(r, "rgba(245,158,11,0.10)", "#d97706", "rgba(245,158,11,0.35)");
+  return                     pill(r, "rgba(16,185,129,0.10)", "#059669", "rgba(16,185,129,0.35)");
+}
+function methodPill(m: string) {
+  if (m === "POST") return pill(m, "var(--accent-bg)", "var(--accent-muted)", "var(--accent-border)");
+  if (m === "PUT")  return pill(m, "rgba(245,158,11,0.10)", "#d97706", "rgba(245,158,11,0.35)");
+  return pill(m, "var(--bg-sunken)", "var(--text-secondary)", "var(--border)");
+}
+
+function Chip({ p }: { p: ReturnType<typeof pill> }) {
   return (
-    <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${cls}`}>
-      {text}
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      borderRadius: 6, border: `1px solid ${p.borderCss}`,
+      padding: "1px 7px", fontSize: 10, fontWeight: 700,
+      letterSpacing: "0.05em", fontFamily: "monospace",
+      backgroundColor: p.bgCss, color: p.textCss,
+    }}>
+      {p.text}
     </span>
   );
 }
@@ -39,115 +48,88 @@ function matchesFilters(e: EventRecord, f: Filters): boolean {
   return true;
 }
 
-// ── Row with flash-on-mount animation ─────────────────────────────────────────
-function FeedRow({
-  event, isSelected, isNew, onSelect,
-}: {
-  event: EventRecord;
-  isSelected: boolean;
-  isNew: boolean;
-  onSelect: (e: EventRecord) => void;
+function FeedRow({ event, isSelected, isNew, onSelect }: {
+  event: EventRecord; isSelected: boolean; isNew: boolean; onSelect: (e: EventRecord) => void;
 }) {
   const [flash, setFlash] = useState(isNew);
-
-  useEffect(() => {
-    if (!isNew) return;
-    const t = setTimeout(() => setFlash(false), 1200);
-    return () => clearTimeout(t);
-  }, [isNew]);
+  useEffect(() => { if (!isNew) return; const t = setTimeout(() => setFlash(false), 1400); return () => clearTimeout(t); }, [isNew]);
 
   return (
     <tr
       onClick={() => onSelect(event)}
-      className={`
-        cursor-pointer border-b border-[var(--border-subtle)]
-        transition-colors duration-150
-        ${flash ? "animate-row-flash" : ""}
-        ${isSelected
-          ? "bg-accent/8 dark:bg-accent/10"
-          : "hover:bg-[var(--bg-raised)]"
-        }
-      `}
+      className={`cursor-pointer transition-colors duration-100 ${flash ? "animate-row-flash" : ""}`}
+      style={{
+        borderBottom: "1px solid var(--border)",
+        backgroundColor: isSelected
+          ? "rgba(249,115,22,0.07)"
+          : undefined,
+      }}
+      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--bg-raised)"; }}
+      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
     >
-      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+      <td className="px-3 py-2.5 font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
         {new Date(event.timestamp).toLocaleTimeString()}
       </td>
-      <td className="px-3 py-2.5">
-        <Pill text={event.method} cls={methodBadge(event.method)} />
-      </td>
-      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-secondary)] truncate max-w-[170px]" title={event.path}>
+      <td className="px-3 py-2.5"><Chip p={methodPill(event.method)} /></td>
+      <td className="px-3 py-2.5 font-mono text-[11px] truncate max-w-[160px]"
+        title={event.path} style={{ color: "var(--text-secondary)" }}>
         {event.path}
       </td>
-      <td className="px-3 py-2.5">
-        <Pill text={event.prediction} cls={predBadge(event.prediction)} />
-      </td>
-      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
+      <td className="px-3 py-2.5"><Chip p={predPill(event.prediction)} /></td>
+      <td className="px-3 py-2.5 font-mono text-[11px] tabular-nums" style={{ color: "var(--text-secondary)" }}>
         {event.attack_probability.toFixed(3)}
       </td>
-      <td className="px-3 py-2.5">
-        <Pill text={event.risk_level} cls={riskBadge(event.risk_level)} />
-      </td>
-      <td className="px-3 py-2.5">
-        <Pill text={event.decision} cls={decisionBadge(event.decision)} />
-      </td>
-      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-muted)] tabular-nums">
+      <td className="px-3 py-2.5"><Chip p={riskPill(event.risk_level)} /></td>
+      <td className="px-3 py-2.5"><Chip p={decisionPill(event.decision)} /></td>
+      <td className="px-3 py-2.5 font-mono text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
         {event.inference_latency_ms.toFixed(0)}ms
       </td>
     </tr>
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
-export default function TrafficFeed({
-  events, filters, selectedId, onSelect,
-}: {
-  events: EventRecord[];
-  filters: Filters;
-  selectedId: string | null;
-  onSelect: (e: EventRecord) => void;
+export default function TrafficFeed({ events, filters, selectedId, onSelect }: {
+  events: EventRecord[]; filters: Filters;
+  selectedId: string | null; onSelect: (e: EventRecord) => void;
 }) {
   const filtered = events.filter((e) => matchesFilters(e, filters));
-
-  // Track which event IDs are "new" (first render for that id)
   const knownIds = useRef<Set<string>>(new Set());
-  const newIds = new Set<string>();
-  filtered.forEach((e) => {
-    if (!knownIds.current.has(e.event_id)) {
-      newIds.add(e.event_id);
-      knownIds.current.add(e.event_id);
-    }
-  });
+  const newIds   = new Set<string>();
+  filtered.forEach((e) => { if (!knownIds.current.has(e.event_id)) { newIds.add(e.event_id); knownIds.current.add(e.event_id); } });
+
+  const COLS = ["Time", "Method", "Endpoint", "Prediction", "Prob", "Risk", "Action", "Latency"];
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+    <div className="card overflow-hidden flex flex-col">
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--bg-raised)" }}>
         <div className="flex items-center gap-2">
-          {/* Animated live dot */}
           <span className="h-2 w-2 rounded-full bg-ok animate-live-pulse" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            Live traffic feed
-          </h3>
+          <span className="text-[11px] font-bold uppercase tracking-wider"
+            style={{ color: "var(--text-secondary)" }}>Live Traffic</span>
         </div>
-        <span className="text-[11px] font-mono text-[var(--text-muted)]">
+        <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
           {filtered.length} shown · {events.length} total
         </span>
       </div>
 
       {/* Table */}
-      <div className="overflow-auto max-h-[440px] flex-1">
+      <div className="overflow-auto" style={{ maxHeight: 460 }}>
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)]">
-            <div className="text-3xl mb-3">📡</div>
-            <div className="text-sm font-medium">Waiting for traffic</div>
-            <div className="text-[11px] mt-1">Start the simulator at localhost:5174</div>
+          <div className="flex flex-col items-center justify-center py-16 gap-2"
+            style={{ color: "var(--text-muted)" }}>
+            <div className="text-4xl">📡</div>
+            <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Waiting for traffic</div>
+            <div className="text-[11px]">Start the simulator at localhost:5174</div>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[var(--bg-raised)] border-b border-[var(--border)]">
-                {["Time","Method","Endpoint","Prediction","Prob","Risk","Action","Latency"].map((h) => (
-                  <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <tr style={{ backgroundColor: "var(--bg-raised)", borderBottom: "2px solid var(--border)" }}>
+                {COLS.map((h) => (
+                  <th key={h} className="text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: "var(--text-muted)" }}>
                     {h}
                   </th>
                 ))}
@@ -155,13 +137,10 @@ export default function TrafficFeed({
             </thead>
             <tbody>
               {filtered.map((e) => (
-                <FeedRow
-                  key={e.event_id}
-                  event={e}
+                <FeedRow key={e.event_id} event={e}
                   isSelected={selectedId === e.event_id}
                   isNew={newIds.has(e.event_id)}
-                  onSelect={onSelect}
-                />
+                  onSelect={onSelect} />
               ))}
             </tbody>
           </table>
