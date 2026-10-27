@@ -2,28 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body,
-#root {
+/* ─── CSS Custom Properties (theme tokens) ───────────────────────────────── */
+:root {
+  /* Light mode defaults */
+  --bg-base:       #f1f5f9;   /* cloud-100 */
+  --bg-surface:    #ffffff;
+  --bg-raised:     #f8fafc;   /* cloud-50 */
+  --bg-sunken:     #e2e8f0;   /* cloud-200 */
+  --border:        #cbd5e1;   /* cloud-300 */
+  --border-subtle: #e2e8f0;
+  --text-primary:  #0f172a;
+  --text-secondary:#475569;
+  --text-muted:    #94a3b8;
+  --accent:        #06b6d4;
+  --accent-soft:   #22d3ee;
+}
+
+html.dark {
+  --bg-base:       #0a0e14;   /* ink-900 */
+  --bg-surface:    #0f1620;   /* ink-800 */
+  --bg-raised:     #16202e;   /* ink-700 */
+  --bg-sunken:     #060a0f;   /* ink-950 */
+  --border:        #1d2a3a;   /* ink-600 */
+  --border-subtle: #16202e;
+  --text-primary:  #e2e8f0;
+  --text-secondary:#94a3b8;
+  --text-muted:    #475569;
+  --accent:        #06b6d4;
+  --accent-soft:   #22d3ee;
+}
+
+/* ─── Base resets ────────────────────────────────────────────────────────── */
+html, body, #root {
   height: 100%;
+  margin: 0;
 }
 
 body {
-  margin: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ─── Scrollbars ─────────────────────────────────────────────────────────── */
+*::-webkit-scrollbar        { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track  { background: transparent; }
+*::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Utility: theme-aware surfaces ─────────────────────────────────────── */
+@layer components {
+  .surface {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+  }
+  .surface-raised {
+    background-color: var(--bg-raised);
+    border: 1px solid var(--border-subtle);
+  }
+  .surface-sunken {
+    background-color: var(--bg-sunken);
+    border: 1px solid var(--border-subtle);
+  }
+  .text-body    { color: var(--text-primary); }
+  .text-sub     { color: var(--text-secondary); }
+  .text-faint   { color: var(--text-muted); }
+  .border-theme { border-color: var(--border); }
 }
-*::-webkit-scrollbar-track {
-  background: transparent;
+
+/* ─── Toast container ────────────────────────────────────────────────────── */
+#toast-root {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+  max-width: 340px;
+  width: 100%;
 }
-*::-webkit-scrollbar-thumb {
-  background: #28384c;
-  border-radius: 4px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: #38506b;
+
+/* ─── Smooth theme transition on interactive elements ────────────────────── */
+button, input, select {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }

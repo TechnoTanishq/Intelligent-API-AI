@@ -7,36 +7,65 @@ const API_DEFAULT = "http://127.0.0.1:8000";
 const EMPTY_STATS: SimStats = {
   total: 0,
   byScenario: { normal: 0, sqli: 0, xss: 0, path_traversal: 0, cmd_injection: 0 },
-  errors: 0,
-  matches: 0,
-  mismatches: 0,
+  errors: 0, matches: 0, mismatches: 0,
 };
 
-const SCENARIO_COLORS: Record<ScenarioLabel, string> = {
-  normal: "text-ok",
-  sqli: "text-warn",
-  xss: "text-danger",
-  path_traversal: "text-accent-soft",
-  cmd_injection: "text-fuchsia-400",
+type Theme = "dark" | "light";
+
+const SCENARIO_STYLES: Record<ScenarioLabel, { color: string; bg: string; icon: string }> = {
+  normal:         { color: "text-ok",           bg: "bg-ok/10 border-ok/30",           icon: "✓" },
+  sqli:           { color: "text-warn",          bg: "bg-warn/10 border-warn/30",         icon: "⚡" },
+  xss:            { color: "text-danger",        bg: "bg-danger/10 border-danger/30",     icon: "✕" },
+  path_traversal: { color: "text-[#22d3ee]",     bg: "bg-cyan-500/10 border-cyan-500/30", icon: "⬆" },
+  cmd_injection:  { color: "text-fuchsia-400",   bg: "bg-fuchsia-500/10 border-fuchsia-500/30", icon: "⌘" },
 };
 
 function agrees(prediction: string, scenario: ScenarioLabel): boolean {
-  if (scenario === "normal") return prediction === "NORMAL";
-  return prediction === "ATTACK";
+  return scenario === "normal" ? prediction === "NORMAL" : prediction === "ATTACK";
+}
+
+function SunIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  );
+}
+function MoonIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+    </svg>
+  );
 }
 
 export default function App() {
+  // ── theme ──────────────────────────────────────────────────────────────────
+  const [theme, setTheme] = useState<Theme>(() => {
+    try { return localStorage.getItem("intelliapi-sim-theme") === "light" ? "light" : "dark"; }
+    catch { return "dark"; }
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    try { localStorage.setItem("intelliapi-sim-theme", theme); } catch { /* ignore */ }
+  }, [theme]);
+  const toggleTheme = () => setTheme((t) => t === "dark" ? "light" : "dark");
+
+  // ── state ──────────────────────────────────────────────────────────────────
   const [apiBase, setApiBase] = useState(API_DEFAULT);
   const [intervalMs, setIntervalMs] = useState(4000);
   const [mix, setMix] = useState<TrafficMix>(DEFAULT_MIX);
-  const [state, setState] = useState<SimState>("stopped");
+  const [simState, setSimState] = useState<SimState>("stopped");
   const [stats, setStats] = useState<SimStats>(EMPTY_STATS);
   const [lastReq, setLastReq] = useState<SimRequest | null>(null);
   const [lastResp, setLastResp] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [health, setHealth] = useState<string>("unknown");
+  const [health, setHealth] = useState<"connected" | "disconnected" | "unknown">("unknown");
 
-  // refs to avoid stale closures inside the interval callback
   const intervalRef = useRef<number | null>(null);
   const mixRef = useRef(mix);
   const apiBaseRef = useRef(apiBase);
@@ -44,10 +73,7 @@ export default function App() {
   useEffect(() => { apiBaseRef.current = apiBase; }, [apiBase]);
 
   const clearTimer = () => {
-    if (intervalRef.current !== null) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
   };
 
   const tick = useCallback(async () => {
@@ -56,19 +82,17 @@ export default function App() {
     try {
       const resp = await analyzeRequest(apiBaseRef.current, req);
       setLastResp(resp);
+      setError(null);
       setStats((s) => {
         const ok = agrees(resp.prediction, req.scenario_label);
-        const byScenario = { ...s.byScenario };
-        byScenario[req.scenario_label] += 1;
         return {
           total: s.total + 1,
-          byScenario,
+          byScenario: { ...s.byScenario, [req.scenario_label]: s.byScenario[req.scenario_label] + 1 },
           errors: s.errors,
           matches: s.matches + (ok ? 1 : 0),
           mismatches: s.mismatches + (ok ? 0 : 1),
         };
       });
-      setError(null);
     } catch (e) {
       setLastResp(null);
       setStats((s) => ({ ...s, errors: s.errors + 1 }));
@@ -76,245 +100,234 @@ export default function App() {
     }
   }, []);
 
-  const startTimer = () => {
+  const startTimer = useCallback(() => {
     clearTimer();
     intervalRef.current = window.setInterval(() => { void tick(); }, intervalMs);
-  };
+  }, [intervalMs, tick]);
 
-  // health check on mount and when apiBase changes
   useEffect(() => {
     let active = true;
     checkHealth(apiBase)
-      .then((h) => active && setHealth(h.model_loaded ? "connected" : "model_not_loaded"))
+      .then((h) => active && setHealth(h.model_loaded ? "connected" : "disconnected"))
       .catch(() => active && setHealth("disconnected"));
     return () => { active = false; };
   }, [apiBase]);
 
-  // keep timer in sync with interval while running
   useEffect(() => {
-    if (state === "running") startTimer();
+    if (simState === "running") startTimer();
     return clearTimer;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intervalMs, state]);
+  }, [intervalMs, simState, startTimer]);
 
-  const onStart = () => {
-    if (state === "stopped") {
-      void tick(); // send one immediately so the user sees activity right away
-    }
-    setState("running");
-  };
-  const onPause = () => setState("paused");
-  const onResume = () => setState("running");
-  const onStop = () => { clearTimer(); setState("stopped"); };
-  const onClearStats = () => { setStats(EMPTY_STATS); setLastReq(null); setLastResp(null); setError(null); };
+  const onStart = () => { void tick(); setSimState("running"); };
+  const onPause = () => setSimState("paused");
+  const onResume = () => setSimState("running");
+  const onStop = () => { clearTimer(); setSimState("stopped"); };
+  const onClear = () => { setStats(EMPTY_STATS); setLastReq(null); setLastResp(null); setError(null); };
+
+  // state badge config
+  const stateBadge = {
+    stopped: { dot: "bg-[var(--text-muted)]",            label: "Stopped" },
+    running: { dot: "bg-ok animate-live-pulse",          label: "Running" },
+    paused:  { dot: "bg-warn",                           label: "Paused"  },
+  }[simState];
+
+  const healthColor = health === "connected" ? "text-ok" : "text-danger";
 
   return (
-    <div className="min-h-full bg-ink-900 text-slate-200">
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              <span className="text-accent">IntelliAPI AI</span> · Traffic Simulator
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Generates HTTP requests every {intervalMs / 1000}s and sends them to the inference API.
-            </p>
+    <div className="min-h-full bg-[var(--bg-base)] text-[var(--text-primary)]">
+
+      {/* ── Sticky header ─────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg-surface)]/90 backdrop-blur-md">
+        <div className="mx-auto max-w-5xl px-6 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-accent/15 flex items-center justify-center text-accent font-bold text-sm">S</div>
+            <div>
+              <h1 className="text-sm font-bold leading-none">
+                <span className="text-[#06b6d4]">IntelliAPI AI</span>
+                <span className="text-[var(--text-muted)] font-normal ml-1 hidden sm:inline">· Simulator</span>
+              </h1>
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5 hidden md:block">HTTP traffic generator</p>
+            </div>
           </div>
-          <div className="text-right">
-            <span className={`inline-flex items-center gap-2 text-sm font-mono ${health === "connected" ? "text-ok" : "text-danger"}`}>
-              <span className={`h-2.5 w-2.5 rounded-full ${health === "connected" ? "bg-ok" : "bg-danger"}`} />
+          <div className="flex items-center gap-2">
+            <span className={`hidden sm:inline text-[11px] font-mono ${healthColor}`}>
               API: {health}
             </span>
+            <input
+              value={apiBase}
+              onChange={(e) => setApiBase(e.target.value)}
+              disabled={simState === "running"}
+              className="hidden md:block bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-mono w-40 focus:outline-none focus:border-[#06b6d4] disabled:opacity-50"
+            />
+            <button onClick={toggleTheme}
+              className="h-8 w-8 rounded-lg flex items-center justify-center bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[#06b6d4] hover:border-[#06b6d4] transition-colors">
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+            </button>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Control bar */}
-        <section className="rounded-xl border border-ink-600 bg-ink-800 p-5 mb-6">
-          <div className="grid md:grid-cols-2 gap-5">
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 space-y-5">
+
+        {/* ── Control panel ─────────────────────────────────────────────── */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+          <div className="grid md:grid-cols-2 gap-4 mb-5">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">API base URL</label>
+              <label className="block text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
+                API base URL
+              </label>
               <input
                 value={apiBase}
                 onChange={(e) => setApiBase(e.target.value)}
-                disabled={state === "running"}
-                className="w-full rounded-lg bg-ink-900 border border-ink-600 px-3 py-2 font-mono text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+                disabled={simState === "running"}
+                className="w-full rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] px-3 py-2 font-mono text-sm focus:outline-none focus:border-[#06b6d4] disabled:opacity-50 text-[var(--text-secondary)]"
               />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">
-                Generation interval: {intervalMs} ms ({(intervalMs / 1000).toFixed(1)}s)
+              <label className="block text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
+                Interval: <span className="text-[#06b6d4] normal-case">{(intervalMs / 1000).toFixed(1)}s</span>
               </label>
-              <input
-                type="range" min={1000} max={10000} step={500}
-                value={intervalMs}
+              <input type="range" min={1000} max={10000} step={500} value={intervalMs}
                 onChange={(e) => setIntervalMs(Number(e.target.value))}
-                className="w-full accent-accent"
-              />
+                className="w-full accent-[#06b6d4] h-2" />
             </div>
           </div>
 
-          {/* Traffic mix sliders */}
-          <div className="mt-5">
-            <label className="block text-xs uppercase tracking-wider text-slate-400 mb-2">Traffic mix (%)</label>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {(Object.keys(mix) as ScenarioLabel[]).map((k) => (
-                <div key={k}>
-                  <div className={`text-xs font-mono mb-1 ${SCENARIO_COLORS[k]}`}>{k}: {mix[k]}%</div>
-                  <input
-                    type="range" min={0} max={100} step={5}
-                    value={mix[k]}
-                    onChange={(e) => setMix({ ...mix, [k]: Number(e.target.value) })}
-                    className="w-full accent-accent"
-                  />
-                </div>
-              ))}
+          {/* Traffic mix */}
+          <div className="mb-5">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2">Traffic mix</div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {(Object.keys(mix) as ScenarioLabel[]).map((k) => {
+                const s = SCENARIO_STYLES[k];
+                return (
+                  <div key={k}>
+                    <div className={`text-[11px] font-mono mb-1 ${s.color}`}>{k}: {mix[k]}%</div>
+                    <input type="range" min={0} max={100} step={5} value={mix[k]}
+                      onChange={(e) => setMix({ ...mix, [k]: Number(e.target.value) })}
+                      className="w-full accent-[#06b6d4] h-1.5" />
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Buttons */}
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button onClick={onStart} disabled={state === "running"}
-              className="rounded-lg bg-ok/90 hover:bg-ok text-ink-900 font-semibold px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          <div className="flex flex-wrap gap-2 items-center">
+            <button onClick={onStart} disabled={simState === "running"}
+              className="rounded-lg bg-ok text-ink-900 dark:text-ink-900 font-bold px-5 py-2 text-sm disabled:opacity-40">
               ▶ Start
             </button>
-            <button onClick={onPause} disabled={state !== "running"}
-              className="rounded-lg bg-warn/90 hover:bg-warn text-ink-900 font-semibold px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={onPause} disabled={simState !== "running"}
+              className="rounded-lg bg-warn text-ink-900 dark:text-ink-900 font-bold px-5 py-2 text-sm disabled:opacity-40">
               ❚❚ Pause
             </button>
-            <button onClick={onResume} disabled={state !== "paused"}
-              className="rounded-lg bg-accent/90 hover:bg-accent text-ink-900 font-semibold px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={onResume} disabled={simState !== "paused"}
+              className="rounded-lg border border-[#06b6d4] text-[#06b6d4] hover:bg-[#06b6d4]/10 font-bold px-5 py-2 text-sm disabled:opacity-40">
               ▶ Resume
             </button>
-            <button onClick={onStop} disabled={state === "stopped"}
-              className="rounded-lg bg-danger/90 hover:bg-danger text-white font-semibold px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={onStop} disabled={simState === "stopped"}
+              className="rounded-lg bg-danger text-white font-bold px-5 py-2 text-sm disabled:opacity-40">
               ■ Stop
             </button>
-            <button onClick={onClearStats}
-              className="rounded-lg border border-ink-500 hover:bg-ink-700 text-slate-300 font-semibold px-5 py-2">
+            <button onClick={onClear}
+              className="rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] px-5 py-2 text-sm font-semibold">
               Clear
             </button>
-            <div className="ml-auto self-center">
-              <StateBadge state={state} />
+            {/* State badge */}
+            <div className="ml-auto flex items-center gap-1.5 rounded-full px-3 py-1 border border-[var(--border)] bg-[var(--bg-raised)] text-xs font-semibold text-[var(--text-secondary)]">
+              <span className={`h-2 w-2 rounded-full ${stateBadge.dot}`} />
+              {stateBadge.label}
             </div>
           </div>
-        </section>
-
-        {/* Stat cards */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard label="Requests sent" value={stats.total} />
-          <StatCard label="Matches (model vs truth)" value={stats.matches} accent="ok" />
-          <StatCard label="Mismatches" value={stats.mismatches} accent={stats.mismatches > 0 ? "warn" : undefined} />
-          <StatCard label="Errors" value={stats.errors} accent={stats.errors > 0 ? "danger" : undefined} />
-        </section>
-
-        {/* Scenario distribution */}
-        <section className="rounded-xl border border-ink-600 bg-ink-800 p-5 mb-6">
-          <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Generated scenarios</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {(Object.keys(stats.byScenario) as ScenarioLabel[]).map((k) => (
-              <div key={k} className="rounded-lg bg-ink-900 border border-ink-600 px-4 py-3">
-                <div className={`text-xs font-mono ${SCENARIO_COLORS[k]}`}>{k}</div>
-                <div className="text-2xl font-bold">{stats.byScenario[k]}</div>
-                <div className="text-[11px] text-slate-500">{((stats.byScenario[k] / (stats.total || 1)) * 100).toFixed(0)}% of sent</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Latest request + response */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Panel title="Latest generated request">
-            {lastReq ? (
-              <pre className="text-xs font-mono text-slate-300 overflow-auto max-h-72">
-                {JSON.stringify({ ...lastReq, headers: { "user-agent": lastReq.headers["user-agent"] } }, null, 2)}
-              </pre>
-            ) : <Empty label="No request generated yet" />}
-            <div className="mt-3 text-xs text-slate-400">
-              Ground-truth label:{" "}
-              <span className={`font-mono ${lastReq ? SCENARIO_COLORS[lastReq.scenario_label] : ""}`}>
-                {lastReq?.scenario_label ?? "—"}
-              </span>{" "}
-              <span className="text-slate-600">(stored for evaluation, not a model input)</span>
-            </div>
-          </Panel>
-
-          <Panel title="Latest server response">
-            {lastResp ? (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2 text-xs font-mono">
-                  <Tag label="prediction" value={lastResp.prediction}
-                    color={lastResp.prediction === "ATTACK" ? "danger" : "ok"} />
-                  <Tag label="prob" value={lastResp.attack_probability.toFixed(3)} />
-                  <Tag label="risk" value={lastResp.risk_level}
-                    color={lastResp.risk_level === "HIGH" ? "danger" : lastResp.risk_level === "MEDIUM" ? "warn" : "ok"} />
-                  <Tag label="decision" value={lastResp.decision}
-                    color={lastResp.decision === "BLOCK" ? "danger" : lastResp.decision === "MONITOR" ? "warn" : "ok"} />
-                  <Tag label="latency" value={`${lastResp.inference_latency_ms.toFixed(1)}ms`} />
-                  <Tag label="attack_type" value={lastResp.attack_type ?? "—"} />
-                </div>
-                <pre className="text-xs font-mono text-slate-400 overflow-auto max-h-56">
-                  {lastResp.reasons.join("\n")}
-                </pre>
-                <div className="text-xs text-slate-500">
-                  Heuristic findings: {lastResp.heuristic_findings.length} · Model evidence: {lastResp.model_evidence.length}
-                </div>
-              </div>
-            ) : <Empty label="No response yet" />}
-          </Panel>
         </div>
 
+        {/* ── Stat cards ────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "Requests sent",    value: stats.total,      color: "text-[var(--text-primary)]" },
+            { label: "Matches",          value: stats.matches,    color: "text-ok" },
+            { label: "Mismatches",       value: stats.mismatches, color: stats.mismatches > 0 ? "text-warn" : "text-[var(--text-primary)]" },
+            { label: "Errors",           value: stats.errors,     color: stats.errors > 0 ? "text-danger" : "text-[var(--text-primary)]" },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{c.label}</div>
+              <div className={`text-3xl font-black mt-1 tabular-nums ${c.color}`}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Scenario distribution ─────────────────────────────────────── */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3">Generated scenarios</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {(Object.keys(stats.byScenario) as ScenarioLabel[]).map((k) => {
+              const s = SCENARIO_STYLES[k];
+              const pct = stats.total ? ((stats.byScenario[k] / stats.total) * 100).toFixed(0) : "0";
+              return (
+                <div key={k} className={`rounded-xl border ${s.bg} p-3`}>
+                  <div className={`text-[11px] font-mono font-semibold ${s.color} mb-1`}>{s.icon} {k}</div>
+                  <div className="text-2xl font-black tabular-nums text-[var(--text-primary)]">{stats.byScenario[k]}</div>
+                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{pct}%</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Request / Response panels ─────────────────────────────────── */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3">Latest generated request</h2>
+            {lastReq ? (
+              <>
+                <pre className="text-[11px] font-mono text-[var(--text-secondary)] overflow-auto max-h-64 whitespace-pre-wrap break-all">
+                  {JSON.stringify({ method: lastReq.method, path: lastReq.path, query: lastReq.query, body: lastReq.body }, null, 2)}
+                </pre>
+                <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+                  Ground-truth: <span className={`font-mono ${SCENARIO_STYLES[lastReq.scenario_label].color}`}>{lastReq.scenario_label}</span>
+                  <span className="ml-2 opacity-60">(not a model input)</span>
+                </div>
+              </>
+            ) : <div className="text-[11px] italic text-[var(--text-muted)]">No request yet — click Start</div>}
+          </div>
+
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3">Latest server response</h2>
+            {lastResp ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
+                  {[
+                    { k: "prediction",  v: lastResp.prediction,                     t: lastResp.prediction === "ATTACK" ? "text-danger" : "text-ok" },
+                    { k: "prob",        v: lastResp.attack_probability.toFixed(3),  t: "text-[var(--text-secondary)]" },
+                    { k: "risk",        v: lastResp.risk_level,                     t: lastResp.risk_level === "HIGH" ? "text-danger" : lastResp.risk_level === "MEDIUM" ? "text-warn" : "text-ok" },
+                    { k: "decision",    v: lastResp.decision,                       t: lastResp.decision === "BLOCK" ? "text-danger" : lastResp.decision === "MONITOR" ? "text-warn" : "text-ok" },
+                    { k: "latency",     v: `${lastResp.inference_latency_ms.toFixed(0)}ms`, t: "text-[var(--text-muted)]" },
+                  ].map((p) => (
+                    <span key={p.k} className={`rounded-md border border-[var(--border)] bg-[var(--bg-raised)] px-2 py-0.5 ${p.t}`}>
+                      <span className="text-[var(--text-muted)]">{p.k}: </span>{p.v}
+                    </span>
+                  ))}
+                </div>
+                <pre className="text-[11px] font-mono text-[var(--text-muted)] overflow-auto max-h-40 whitespace-pre-wrap">
+                  {lastResp.reasons.join("\n")}
+                </pre>
+              </div>
+            ) : <div className="text-[11px] italic text-[var(--text-muted)]">No response yet</div>}
+          </div>
+        </div>
+
+        {/* Error banner */}
         {error && (
-          <div className="mt-6 rounded-lg border border-danger/40 bg-danger/10 text-danger px-4 py-3 text-sm font-mono">
+          <div className="rounded-xl border border-danger/40 bg-danger/8 text-danger px-4 py-3 text-sm font-mono">
             Error: {error}
           </div>
         )}
 
-        <footer className="mt-10 text-center text-xs text-slate-600">
-          IntelliAPI-AI-Simulator/1.0 · Educational prototype · Requests sent only to your local service
-        </footer>
-      </div>
+      </main>
+
+      <footer className="mt-4 mb-8 text-center text-[11px] text-[var(--text-muted)]">
+        IntelliAPI-AI-Simulator/1.0 · requests sent only to your local service
+      </footer>
     </div>
   );
-}
-
-function StateBadge({ state }: { state: SimState }) {
-  const map = {
-    stopped: { c: "bg-ink-600 text-slate-400", t: "Stopped" },
-    running: { c: "bg-ok/20 text-ok", t: "Running" },
-    paused: { c: "bg-warn/20 text-warn", t: "Paused" },
-  } as const;
-  const m = map[state];
-  return <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${m.c}`}>
-    <span className={`h-2 w-2 rounded-full ${state === "running" ? "bg-ok animate-pulse" : state === "paused" ? "bg-warn" : "bg-slate-500"}`} />
-    {m.t}
-  </span>;
-}
-
-function StatCard({ label, value, accent }: { label: string; value: number; accent?: "ok" | "warn" | "danger" }) {
-  const color = accent === "ok" ? "text-ok" : accent === "warn" ? "text-warn" : accent === "danger" ? "text-danger" : "text-slate-100";
-  return (
-    <div className="rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <div className="text-xs uppercase tracking-wider text-slate-400">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
-    </div>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-ink-600 bg-ink-800 p-5">
-      <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Tag({ label, value, color }: { label: string; value: string; color?: "ok" | "warn" | "danger" }) {
-  const c = color === "ok" ? "text-ok border-ok/40" : color === "warn" ? "text-warn border-warn/40" : color === "danger" ? "text-danger border-danger/40" : "text-slate-300 border-ink-500";
-  return <span className={`rounded border px-2 py-1 ${c}`}>{label}: {value}</span>;
-}
-
-function Empty({ label }: { label: string }) {
-  return <div className="text-sm text-slate-500 italic">{label}</div>;
 }

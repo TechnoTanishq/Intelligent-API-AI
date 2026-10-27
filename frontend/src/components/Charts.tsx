@@ -13,11 +13,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useTheme } from "../context/ThemeContext";
 import type { EventRecord, ModelInfo, Stats } from "../types";
 import { buildRiskSeries, buildVolumeSeries } from "../utils/stats";
 
 const COLORS = {
-  normal: "#34d399",
+  normal: "#10b981",
   attack: "#f87171",
   sqli: "#fbbf24",
   xss: "#f87171",
@@ -36,21 +37,25 @@ const colorFor = (k: string) => (COLORS as Record<string, string>)[k.toLowerCase
 
 function Panel({ title, children, height = 220 }: { title: string; children: React.ReactNode; height?: number }) {
   return (
-    <div className="rounded-xl border border-ink-600 bg-ink-800 p-4">
-      <h3 className="text-xs uppercase tracking-wider text-slate-400 mb-3">{title}</h3>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+      <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3">{title}</h3>
       <div style={{ height }}>{children}</div>
     </div>
   );
 }
 
 const tooltipStyle = {
-  background: "#0a0e14",
-  border: "1px solid #28384c",
-  borderRadius: 8,
-  fontSize: 12,
+  background: "var(--bg-raised)",
+  border: "1px solid var(--border)",
+  borderRadius: 10,
+  fontSize: 11,
+  color: "var(--text-primary)",
 };
 
 export default function Charts({ events, stats, modelInfo }: { events: EventRecord[]; stats: Stats; modelInfo: ModelInfo | null }) {
+  const { isDark } = useTheme();
+  const axisColor = isDark ? "#475569" : "#94a3b8";
+  const gridColor = isDark ? "#1d2a3a" : "#e2e8f0";
   const hasEvents = events.length > 0;
 
   const atkTypeData = Object.entries(stats.attack_type_distribution).map(([name, value]) => ({ name, value }));
@@ -99,9 +104,9 @@ export default function Charts({ events, stats, modelInfo }: { events: EventReco
         {hasEvents && volumeData.length ? (
           <ResponsiveContainer>
             <LineChart data={volumeData} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
-              <CartesianGrid stroke="#1d2a3a" strokeDasharray="3 3" />
-              <XAxis dataKey="t" stroke="#64748b" fontSize={10} tickMargin={6} minTickGap={40} />
-              <YAxis stroke="#64748b" fontSize={10} allowDecimals={false} />
+              <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+              <XAxis dataKey="t" stroke={axisColor} fontSize={10} tickMargin={6} minTickGap={40} />
+              <YAxis stroke={axisColor} fontSize={10} allowDecimals={false} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Line type="monotone" dataKey="total" stroke="#22d3ee" dot={false} strokeWidth={2} />
@@ -116,9 +121,9 @@ export default function Charts({ events, stats, modelInfo }: { events: EventReco
         {hasEvents && riskData.length ? (
           <ResponsiveContainer>
             <LineChart data={riskData} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
-              <CartesianGrid stroke="#1d2a3a" strokeDasharray="3 3" />
-              <XAxis dataKey="idx" stroke="#64748b" fontSize={10} tickMargin={6} />
-              <YAxis domain={[0, 1]} stroke="#64748b" fontSize={10} />
+              <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+              <XAxis dataKey="idx" stroke={axisColor} fontSize={10} tickMargin={6} />
+              <YAxis domain={[0, 1]} stroke={axisColor} fontSize={10} />
               <Tooltip contentStyle={tooltipStyle} />
               <Line type="monotone" dataKey="prob" stroke="#fbbf24" dot={false} strokeWidth={2} />
             </LineChart>
@@ -130,9 +135,9 @@ export default function Charts({ events, stats, modelInfo }: { events: EventReco
         {importanceData.length ? (
           <ResponsiveContainer>
             <BarChart data={importanceData} layout="vertical" margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-              <CartesianGrid stroke="#1d2a3a" strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" stroke="#64748b" fontSize={10} />
-              <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={9} width={110} tickMargin={4} />
+              <CartesianGrid stroke={gridColor} strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" stroke={axisColor} fontSize={10} />
+              <YAxis type="category" dataKey="name" stroke={axisColor} fontSize={9} width={110} tickMargin={4} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "importance"]} />
               <Bar dataKey="importance" fill="#22d3ee" radius={[0, 3, 3, 0]} />
             </BarChart>
@@ -144,5 +149,10 @@ export default function Charts({ events, stats, modelInfo }: { events: EventReco
 }
 
 function Empty({ label }: { label?: string }) {
-  return <div className="h-full flex items-center justify-center text-sm text-slate-500 italic">{label ?? "Waiting for live events…"}</div>;
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-2 text-[var(--text-muted)]">
+      <span className="text-2xl">📊</span>
+      <span className="text-xs italic">{label ?? "Waiting for live events…"}</span>
+    </div>
+  );
 }

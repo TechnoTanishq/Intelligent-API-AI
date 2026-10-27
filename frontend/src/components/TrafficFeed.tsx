@@ -1,13 +1,34 @@
+import { useEffect, useRef, useState } from "react";
 import type { EventRecord, Filters } from "../types";
 
-function decisionClass(d: string): string {
-  return d === "BLOCK" ? "text-danger" : d === "MONITOR" ? "text-warn" : "text-ok";
+// ── colour helpers ────────────────────────────────────────────────────────────
+function decisionBadge(d: string) {
+  if (d === "BLOCK")   return "bg-danger/15 text-danger   border-danger/30";
+  if (d === "MONITOR") return "bg-warn/15   text-warn     border-warn/30";
+  return                      "bg-ok/15     text-ok       border-ok/30";
 }
-function predictionClass(p: string): string {
-  return p === "ATTACK" ? "text-danger" : "text-ok";
+function predBadge(p: string) {
+  return p === "ATTACK"
+    ? "bg-danger/15 text-danger border-danger/30"
+    : "bg-ok/15     text-ok     border-ok/30";
 }
-function riskClass(r: string): string {
-  return r === "HIGH" ? "text-danger" : r === "MEDIUM" ? "text-warn" : "text-ok";
+function riskBadge(r: string) {
+  if (r === "HIGH")   return "bg-danger/15 text-danger border-danger/30";
+  if (r === "MEDIUM") return "bg-warn/15   text-warn   border-warn/30";
+  return                     "bg-ok/15     text-ok     border-ok/30";
+}
+function methodBadge(m: string) {
+  if (m === "POST") return "bg-accent/15 text-accent border-accent/30";
+  if (m === "PUT")  return "bg-warn/15   text-warn   border-warn/30";
+  return                   "bg-[var(--bg-raised)] text-[var(--text-secondary)] border-[var(--border)]";
+}
+
+function Pill({ text, cls }: { text: string; cls: string }) {
+  return (
+    <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${cls}`}>
+      {text}
+    </span>
+  );
 }
 
 function matchesFilters(e: EventRecord, f: Filters): boolean {
@@ -18,6 +39,65 @@ function matchesFilters(e: EventRecord, f: Filters): boolean {
   return true;
 }
 
+// ── Row with flash-on-mount animation ─────────────────────────────────────────
+function FeedRow({
+  event, isSelected, isNew, onSelect,
+}: {
+  event: EventRecord;
+  isSelected: boolean;
+  isNew: boolean;
+  onSelect: (e: EventRecord) => void;
+}) {
+  const [flash, setFlash] = useState(isNew);
+
+  useEffect(() => {
+    if (!isNew) return;
+    const t = setTimeout(() => setFlash(false), 1200);
+    return () => clearTimeout(t);
+  }, [isNew]);
+
+  return (
+    <tr
+      onClick={() => onSelect(event)}
+      className={`
+        cursor-pointer border-b border-[var(--border-subtle)]
+        transition-colors duration-150
+        ${flash ? "animate-row-flash" : ""}
+        ${isSelected
+          ? "bg-accent/8 dark:bg-accent/10"
+          : "hover:bg-[var(--bg-raised)]"
+        }
+      `}
+    >
+      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+        {new Date(event.timestamp).toLocaleTimeString()}
+      </td>
+      <td className="px-3 py-2.5">
+        <Pill text={event.method} cls={methodBadge(event.method)} />
+      </td>
+      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-secondary)] truncate max-w-[170px]" title={event.path}>
+        {event.path}
+      </td>
+      <td className="px-3 py-2.5">
+        <Pill text={event.prediction} cls={predBadge(event.prediction)} />
+      </td>
+      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
+        {event.attack_probability.toFixed(3)}
+      </td>
+      <td className="px-3 py-2.5">
+        <Pill text={event.risk_level} cls={riskBadge(event.risk_level)} />
+      </td>
+      <td className="px-3 py-2.5">
+        <Pill text={event.decision} cls={decisionBadge(event.decision)} />
+      </td>
+      <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--text-muted)] tabular-nums">
+        {event.inference_latency_ms.toFixed(0)}ms
+      </td>
+    </tr>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function TrafficFeed({
   events, filters, selectedId, onSelect,
 }: {
@@ -28,56 +108,64 @@ export default function TrafficFeed({
 }) {
   const filtered = events.filter((e) => matchesFilters(e, filters));
 
+  // Track which event IDs are "new" (first render for that id)
+  const knownIds = useRef<Set<string>>(new Set());
+  const newIds = new Set<string>();
+  filtered.forEach((e) => {
+    if (!knownIds.current.has(e.event_id)) {
+      newIds.add(e.event_id);
+      knownIds.current.add(e.event_id);
+    }
+  });
+
   return (
-    <div className="rounded-xl border border-ink-600 bg-ink-800 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-ink-600">
-        <h3 className="text-xs uppercase tracking-wider text-slate-400">Live traffic feed</h3>
-        <span className="text-[11px] text-slate-500 font-mono">{filtered.length} shown · {events.length} total</span>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2">
+          {/* Animated live dot */}
+          <span className="h-2 w-2 rounded-full bg-ok animate-live-pulse" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Live traffic feed
+          </h3>
+        </div>
+        <span className="text-[11px] font-mono text-[var(--text-muted)]">
+          {filtered.length} shown · {events.length} total
+        </span>
       </div>
-      <div className="overflow-auto max-h-[420px]">
-        <table className="w-full text-sm">
-          <thead className="text-[11px] uppercase tracking-wider text-slate-500 bg-ink-700 sticky top-0">
-            <tr>
-              <th className="text-left px-3 py-2">Timestamp</th>
-              <th className="text-left px-3 py-2">Event ID</th>
-              <th className="text-left px-3 py-2">Method</th>
-              <th className="text-left px-3 py-2">Endpoint</th>
-              <th className="text-left px-3 py-2">Prediction</th>
-              <th className="text-left px-3 py-2">Prob</th>
-              <th className="text-left px-3 py-2">Risk</th>
-              <th className="text-left px-3 py-2">Action</th>
-              <th className="text-left px-3 py-2">Latency</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-slate-500 italic">
-                  No events yet. Start the traffic simulator to see live requests analyzed here.
-                </td>
+
+      {/* Table */}
+      <div className="overflow-auto max-h-[440px] flex-1">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)]">
+            <div className="text-3xl mb-3">📡</div>
+            <div className="text-sm font-medium">Waiting for traffic</div>
+            <div className="text-[11px] mt-1">Start the simulator at localhost:5174</div>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-[var(--bg-raised)] border-b border-[var(--border)]">
+                {["Time","Method","Endpoint","Prediction","Prob","Risk","Action","Latency"].map((h) => (
+                  <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    {h}
+                  </th>
+                ))}
               </tr>
-            )}
-            {filtered.map((e) => (
-              <tr
-                key={e.event_id}
-                onClick={() => onSelect(e)}
-                className={`cursor-pointer border-b border-ink-700 hover:bg-ink-700/60 ${selectedId === e.event_id ? "bg-ink-700/80" : ""}`}
-              >
-                <td className="px-3 py-2 font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                  {new Date(e.timestamp).toLocaleTimeString()}
-                </td>
-                <td className="px-3 py-2 font-mono text-[11px] text-slate-400 truncate max-w-[120px]">{e.event_id}</td>
-                <td className="px-3 py-2 font-mono text-[11px]">{e.method}</td>
-                <td className="px-3 py-2 font-mono text-[11px] truncate max-w-[180px]" title={e.path}>{e.path}</td>
-                <td className={`px-3 py-2 font-semibold ${predictionClass(e.prediction)}`}>{e.prediction}</td>
-                <td className="px-3 py-2 font-mono text-[11px]">{e.attack_probability.toFixed(3)}</td>
-                <td className={`px-3 py-2 font-semibold ${riskClass(e.risk_level)}`}>{e.risk_level}</td>
-                <td className={`px-3 py-2 font-semibold ${decisionClass(e.decision)}`}>{e.decision}</td>
-                <td className="px-3 py-2 font-mono text-[11px] text-slate-400">{e.inference_latency_ms.toFixed(1)}ms</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((e) => (
+                <FeedRow
+                  key={e.event_id}
+                  event={e}
+                  isSelected={selectedId === e.event_id}
+                  isNew={newIds.has(e.event_id)}
+                  onSelect={onSelect}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
